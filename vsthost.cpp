@@ -144,12 +144,12 @@ alsaSeqCallback(snd_seq_t *alsaSeqHandle)
 		continue;
 	    }
 
-            if (ev->type == SND_SEQ_EVENT_PGMCHANGE) {
-                pthread_mutex_lock(&pluginMutex);
-                plugin->setCurrentProgram(ev->data.control.value);
-                pthread_mutex_unlock(&pluginMutex);
-                continue;
-            }
+	    if (ev->type == SND_SEQ_EVENT_PGMCHANGE) {
+		pthread_mutex_lock(&pluginMutex);
+		plugin->setCurrentProgram(ev->data.control.value);
+		pthread_mutex_unlock(&pluginMutex);
+		continue;
+	    }
 
 	    if (midiReadIndex == midiWriteIndex + 1) {
 		fprintf(stderr, "WARNING: MIDI stream buffer overflow\n");
@@ -157,10 +157,10 @@ alsaSeqCallback(snd_seq_t *alsaSeqHandle)
 	    }
 
 	    long count = snd_midi_event_decode
-		(alsaDecoder,
-		 midiStreamBuffer + (midiWriteIndex * MIDI_DECODED_SIZE),
-		 (MIDI_BUFFER_SIZE - midiWriteIndex) * MIDI_DECODED_SIZE,
-		 ev);
+			 (alsaDecoder,
+			  midiStreamBuffer + (midiWriteIndex * MIDI_DECODED_SIZE),
+			  (MIDI_BUFFER_SIZE - midiWriteIndex) * MIDI_DECODED_SIZE,
+			  ev);
 
 	    if (count > 0 && count <= 3) {
 
@@ -172,7 +172,7 @@ alsaSeqCallback(snd_seq_t *alsaSeqHandle)
 
 		gettimeofday(midiTimeBuffer + midiWriteIndex, NULL);
 		midiWriteIndex = (midiWriteIndex + 1) % MIDI_BUFFER_SIZE;
-		
+
 	    } else if (count > 3) {
 		fprintf(stderr, "WARNING: MIDI event of type %d"
 			" decoded to >3 bytes, discarding\n", ev->type);
@@ -184,7 +184,7 @@ alsaSeqCallback(snd_seq_t *alsaSeqHandle)
 			" for event type %d\n", count, ev->type);
 	    }
 	}
-	
+
     } while (snd_seq_event_input_pending(alsaSeqHandle, 0) > 0);
 }
 
@@ -210,9 +210,9 @@ openAlsaSeq(const char *pluginName)
     snd_seq_set_client_name(alsaSeqHandle, alsaName);
 
     if ((portid = snd_seq_create_simple_port
-	 (alsaSeqHandle, alsaName,
-	  SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
-	  SND_SEQ_PORT_TYPE_APPLICATION)) < 0) {
+		  (alsaSeqHandle, alsaName,
+		   SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
+		   SND_SEQ_PORT_TYPE_APPLICATION)) < 0) {
 	fprintf(stderr, "ERROR: Failed to create ALSA sequencer port\n");
 	return 1;
     }
@@ -248,11 +248,11 @@ jackProcess(jack_nframes_t nframes, void *arg)
 
     for (int i = 0; i < jackData.input_count; ++i) {
 	jackData.input_buffers[i] = (float *)jack_port_get_buffer
-	    (jackData.input_ports[i], jackData.buffer_size);
+				    (jackData.input_ports[i], jackData.buffer_size);
     }
     for (int i = 0; i < jackData.output_count; ++i) {
 	jackData.output_buffers[i] = (float *)jack_port_get_buffer
-	    (jackData.output_ports[i], jackData.buffer_size);
+				     (jackData.output_ports[i], jackData.buffer_size);
     }
 
     if (exiting) {
@@ -308,7 +308,7 @@ jackProcess(jack_nframes_t nframes, void *arg)
 			     midiFrameOffsets + midiReadIndex,
 			     wi - midiReadIndex);
 	midiReadIndex = wi;
-    }	
+    }
 
     try {
 	plugin->process(jackData.input_buffers, jackData.output_buffers);
@@ -319,7 +319,7 @@ jackProcess(jack_nframes_t nframes, void *arg)
     }
 
     pthread_mutex_unlock(&pluginMutex);
-    return 0;      
+    return 0;
 }
 
 void
@@ -353,7 +353,7 @@ openJack(const char *pluginName)
 
     jack_set_process_callback(jackData.client, jackProcess, 0);
     jack_on_shutdown(jackData.client, shutdownJack, 0);
-  
+
     jackData.sample_rate = jack_get_sample_rate(jackData.client);
     jackData.buffer_size = jack_get_buffer_size(jackData.client);
 
@@ -361,7 +361,7 @@ openJack(const char *pluginName)
     plugin->setBufferSize(jackData.buffer_size);
 
     ports = jack_get_ports
-	 (jackData.client, NULL, NULL, JackPortIsPhysical | JackPortIsInput);
+	    (jackData.client, NULL, NULL, JackPortIsPhysical | JackPortIsInput);
 
     jackData.input_count = plugin->getInputCount();
     jackData.output_count = plugin->getOutputCount();
@@ -377,8 +377,8 @@ openJack(const char *pluginName)
 	    jackData.input_buffers[i] = 0;
 	    snprintf(portName, 100, "in_%d", i+1);
 	    jackData.input_ports[i] = jack_port_register
-		(jackData.client, portName,
-		 JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+				      (jackData.client, portName,
+				       JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
 	}
 
     } else {
@@ -395,8 +395,8 @@ openJack(const char *pluginName)
 	    jackData.output_buffers[i] = 0;
 	    snprintf(portName, 100, "out_%d", i+1);
 	    jackData.output_ports[i] = jack_port_register
-		(jackData.client, portName,
-		 JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+				       (jackData.client, portName,
+					JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
 	}
 
     } else {
@@ -411,7 +411,7 @@ openJack(const char *pluginName)
 	fprintf(stderr, "ERROR: Failed to activate JACK client -- some internal error?\n");
 	return 1;
     }
-    
+
     bool portsLeft = true;
     for (int i = 0; i < jackData.output_count; ++i) {
 	if (portsLeft) {
@@ -455,7 +455,7 @@ usage()
 {
     fprintf(stderr, "Usage: vsthost [-n] <dll>\n    -n  No GUI\n");
     exit(2);
-}    
+}
 
 int
 main(int argc, char **argv)
@@ -468,7 +468,7 @@ main(int argc, char **argv)
 
     while (1) {
 	int c = getopt(argc, argv, "nd:");
-	
+
 	if (c == -1) break;
 	else if (c == 'n') {
 	    gui = false;
@@ -543,7 +543,7 @@ main(int argc, char **argv)
 	npfd = snd_seq_poll_descriptors_count(alsaSeqHandle, POLLIN);
 	pfd = (struct pollfd *)alloca(npfd * sizeof(struct pollfd));
 	snd_seq_poll_descriptors(alsaSeqHandle, pfd, npfd, POLLIN);
-	
+
 	while (1) {
 	    if (poll(pfd, npfd, 1000) > 0) {
 		alsaSeqCallback(alsaSeqHandle);

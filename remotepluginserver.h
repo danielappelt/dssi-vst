@@ -19,7 +19,7 @@ class RemotePluginServer
 {
 public:
     virtual ~RemotePluginServer();
-    
+
     virtual bool         isReady() = 0;
 
     virtual float        getVersion() { return RemotePluginVersion; }
@@ -31,7 +31,7 @@ public:
 
     virtual void         reset() = 0;
     virtual void         terminate() = 0;
-    
+
     virtual int          getInputCount() = 0;
     virtual int          getOutputCount() = 0;
 
@@ -40,7 +40,8 @@ public:
     virtual void         setParameter(int, float)             { return; }
     virtual float        getParameter(int)                    { return 0.0f; }
     virtual float        getParameterDefault(int)             { return 0.0f; }
-    virtual void         getParameters(int p0, int pn, float *v) {
+    virtual void         getParameters(int p0, int pn, float *v)
+    {
 	for (int i = p0; i <= pn; ++i) v[i - p0] = 0.0f;
     }
 
@@ -55,10 +56,10 @@ public:
 
     virtual void         process(float **inputs, float **outputs) = 0;
 
-    virtual void         setDebugLevel(RemotePluginDebugLevel) { return; } 
+    virtual void         setDebugLevel(RemotePluginDebugLevel) { return; }
     virtual bool         warn(std::string) = 0;
 
-    virtual void         showGUI(std::string guiData) { } 
+    virtual void         showGUI(std::string guiData) { }
     virtual void         hideGUI() { }
 
     //Deryabin Andrew: vst chunks support

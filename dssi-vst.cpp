@@ -30,7 +30,7 @@ public:
     static void freeFields(DSSI_Descriptor &descriptor);
 
     DSSIVSTPluginInstance(std::string dllName,
-			unsigned long sampleRate);
+			  unsigned long sampleRate);
     virtual ~DSSIVSTPluginInstance();
 
     bool isOK() { return m_ok; }
@@ -98,13 +98,13 @@ public:
 
     static LADSPA_Handle instantiate(const LADSPA_Descriptor *descriptor,
 				     unsigned long sampleRate);
-    
+
     static void connect_port(LADSPA_Handle instance,
 			     unsigned long port,
 			     LADSPA_Data *location);
 
     static void activate(LADSPA_Handle instance);
-    
+
     static void run(LADSPA_Handle instance,
 		    unsigned long sampleCount);
 
@@ -115,7 +115,7 @@ public:
     // DSSI methods:
 
     static const DSSI_Program_Descriptor *get_program(LADSPA_Handle instance,
-						      unsigned long index);
+	    unsigned long index);
 
     static void select_program(LADSPA_Handle instance,
 			       unsigned long bank, unsigned long program);
@@ -139,7 +139,7 @@ private:
 #define NO_CONTROL_DATA -10000000000000.0
 
 DSSIVSTPluginInstance::DSSIVSTPluginInstance(std::string dllName,
-					 unsigned long sampleRate) :
+	unsigned long sampleRate) :
     m_sampleRate(sampleRate),
     m_lastSampleCount(0),
     m_controlPorts(0),
@@ -167,15 +167,17 @@ DSSIVSTPluginInstance::DSSIVSTPluginInstance(std::string dllName,
 		  << dllName << "): startup failed" << std::endl;
 
 	m_ok = false;
-	delete m_plugin; m_plugin = 0;
+	delete m_plugin;
+	m_plugin = 0;
 	return;
 
     } catch (std::string message) {
 	std::cerr << "DSSIVSTPluginInstance::DSSIVSTPluginInstance("
 		  << dllName << "): startup failed: " << message << std::endl;
-	
+
 	m_ok = false;
-	delete m_plugin; m_plugin = 0;
+	delete m_plugin;
+	m_plugin = 0;
 	return;
     }
 
@@ -344,13 +346,13 @@ DSSIVSTPluginInstance::run(unsigned long sampleCount)
 	    m_plugin->setBufferSize(sampleCount);
 	    m_lastSampleCount = sampleCount;
 	}
-	
+
 	int modifiedCount = 0;
-	
+
 	for (unsigned long i = 0; i < m_controlPortCount; ++i) {
-	    
+
 	    if (!m_controlPorts[i]) continue;
-	    
+
 	    if (m_controlPortsSaved[i] != *m_controlPorts[i]) {
 //		    std::cout << "Sending new value " << *m_controlPorts[i]
 //			      << " for control port " << i << std::endl;
@@ -359,9 +361,9 @@ DSSIVSTPluginInstance::run(unsigned long sampleCount)
 		if (++modifiedCount > 10) break;
 	    }
 	}
-	
+
 	m_plugin->process(m_audioIns, m_audioOuts);
-	
+
     } catch (RemotePluginClosedException) {
 	m_ok = false;
     }
@@ -378,9 +380,9 @@ DSSIVSTPluginInstance::runSynth(unsigned long sampleCount,
 
 	    unsigned long index = 0;
 	    unsigned long i;
-	    
+
 	    for (i = 0; i < eventCount; ++i) {
-		
+
 		snd_seq_event_t *ev = &events[i];
 
 		if (index >= MIDI_BUFFER_SIZE - 4) break;
@@ -390,7 +392,7 @@ DSSIVSTPluginInstance::runSynth(unsigned long sampleCount,
 
 		m_frameOffsetsBuffer[i] = ev->time.tick;
 		ev->time.tick = 0;
-		
+
 		long count = snd_midi_event_decode(m_alsaDecoder,
 						   m_decodeBuffer + index,
 						   MIDI_BUFFER_SIZE - index,
@@ -408,7 +410,7 @@ DSSIVSTPluginInstance::runSynth(unsigned long sampleCount,
 		    }
 		}
 	    }
-	    
+
 	    if (index > 0) {
 		m_plugin->sendMIDIData(m_decodeBuffer, m_frameOffsetsBuffer, i);
 	    }
@@ -480,7 +482,7 @@ DSSIVSTPlugin::DSSIVSTPlugin()
 	std::cerr << "DSSIVSTPlugin: Error on plugin query: " << error << std::endl;
 	return;
     }
-    
+
     for (unsigned int p = 0; p < plugins.size(); ++p) {
 
 	DSSI_Descriptor *descriptor = new DSSI_Descriptor;
@@ -512,7 +514,7 @@ DSSIVSTPlugin::DSSIVSTPlugin()
 	int portCount = parameters + inputs + outputs + 1; // 1 for latency output
 
 	LADSPA_PortDescriptor *ports = new LADSPA_PortDescriptor[portCount];
-        char **names = new char *[portCount];
+	char **names = new char *[portCount];
 	LADSPA_PortRangeHint *hints = new LADSPA_PortRangeHint[portCount];
 
 	for (int i = 0; i < parameters; ++i) {
@@ -572,17 +574,17 @@ DSSIVSTPlugin::DSSIVSTPlugin()
 	ldesc->set_run_adding_gain = 0;
 	ldesc->deactivate = DSSIVSTPlugin::deactivate;
 	ldesc->cleanup = DSSIVSTPlugin::cleanup;
-	
+
 	descriptor->DSSI_API_Version = 1;
 	descriptor->configure = DSSIVSTPlugin::configure;
 	descriptor->get_program = DSSIVSTPlugin::get_program;
 	descriptor->select_program = DSSIVSTPlugin::select_program;
 	descriptor->get_midi_controller_for_port = 0;
 
-       //Andrew Deryabin: VST chunks support
-       descriptor->set_custom_data = DSSIVSTPlugin::set_custom_data;
-       descriptor->get_custom_data = DSSIVSTPlugin::get_custom_data;
-       //Andrew Deryabin: VST chunks support: end code
+	//Andrew Deryabin: VST chunks support
+	descriptor->set_custom_data = DSSIVSTPlugin::set_custom_data;
+	descriptor->get_custom_data = DSSIVSTPlugin::get_custom_data;
+	//Andrew Deryabin: VST chunks support: end code
 
 	if (rec.isSynth) {
 	    descriptor->run_synth = DSSIVSTPlugin::run_synth;
@@ -597,7 +599,7 @@ DSSIVSTPlugin::DSSIVSTPlugin()
 	m_descriptors.push_back(PluginPair(rec.dllName, descriptor));
     }
 }
-    
+
 DSSIVSTPlugin::~DSSIVSTPlugin()
 {
     for (PluginList::iterator i = m_descriptors.begin(); i != m_descriptors.end(); ++i) {
@@ -623,13 +625,13 @@ DSSIVSTPlugin::queryDescriptor(unsigned long index)
 
 LADSPA_Handle
 DSSIVSTPlugin::instantiate(const LADSPA_Descriptor *descriptor,
-			 unsigned long sampleRate)
+			   unsigned long sampleRate)
 {
     std::cerr << "DSSIVSTPlugin::instantiate(" << descriptor->Label << ")" << std::endl;
 
     try {
 	return (LADSPA_Handle)
-	    (new DSSIVSTPluginInstance(descriptor->Label, sampleRate));
+	       (new DSSIVSTPluginInstance(descriptor->Label, sampleRate));
     } catch (std::string e) {
 	perror(e.c_str());
     } catch (RemotePluginClosedException) {
@@ -640,8 +642,8 @@ DSSIVSTPlugin::instantiate(const LADSPA_Descriptor *descriptor,
 
 void
 DSSIVSTPlugin::connect_port(LADSPA_Handle instance,
-			  unsigned long port,
-			  LADSPA_Data *location)
+			    unsigned long port,
+			    LADSPA_Data *location)
 {
     ((DSSIVSTPluginInstance *)instance)->connectPort(port, location);
 }
@@ -679,17 +681,17 @@ DSSIVSTPlugin::get_program(LADSPA_Handle instance, unsigned long index)
 
 void
 DSSIVSTPlugin::select_program(LADSPA_Handle instance, unsigned long bank,
-			    unsigned long program)
+			      unsigned long program)
 {
     ((DSSIVSTPluginInstance *)instance)->selectProgram(bank, program);
 }
 
 void
 DSSIVSTPlugin::run_synth(LADSPA_Handle instance, unsigned long sampleCount,
-		       snd_seq_event_t *events, unsigned long eventCount)
+			 snd_seq_event_t *events, unsigned long eventCount)
 {
     ((DSSIVSTPluginInstance *)instance)->runSynth(sampleCount, events,
-						eventCount);
+	    eventCount);
 }
 
 char *
@@ -759,10 +761,10 @@ int DSSIVSTPlugin::set_custom_data(LADSPA_Handle Instance, void *Data, unsigned 
 {
     DSSIVSTPluginInstance *instance = ((DSSIVSTPluginInstance *)Instance);
     if(DataLength == 0 || Data == 0)
-        return 0;
+	return 0;
     std::vector<char> chunk;
     for(unsigned long i = 0; i < DataLength; i++)
-        chunk.push_back(((char *)Data) [i]);
+	chunk.push_back(((char *)Data) [i]);
     instance->m_plugin->setVSTChunk(chunk);
     return 1;
 }
@@ -773,13 +775,12 @@ int DSSIVSTPlugin::get_custom_data(LADSPA_Handle Instance, void **Data, unsigned
     std::vector<char> chunk = instance->m_plugin->getVSTChunk();
     unsigned long chunksize = chunk.size();
     instance->m_chunkdata = new char [chunksize];
-    if(instance->m_chunkdata)
-    {
-        std::vector<char>::pointer ptr = &chunk [0];
-        memcpy(instance->m_chunkdata, ptr, chunksize);
-        *Data = instance->m_chunkdata;
-        *DataLength = chunksize;
-        return 1;
+    if(instance->m_chunkdata) {
+	std::vector<char>::pointer ptr = &chunk [0];
+	memcpy(instance->m_chunkdata, ptr, chunksize);
+	*Data = instance->m_chunkdata;
+	*DataLength = chunksize;
+	return 1;
     }
     *Data = 0;
     *DataLength = 0;

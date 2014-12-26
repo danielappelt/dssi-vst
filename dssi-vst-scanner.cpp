@@ -51,7 +51,7 @@ struct VstTimeInfo_R {
 };
 intptr_t
 hostCallback(AEffect *plugin, int32_t opcode, int32_t index,
-             intptr_t value, void *ptr, float opt)
+	     intptr_t value, void *ptr, float opt)
 #elif VST_2_4_EXTENSIONS
 typedef VstTimeInfo VstTimeInfo_R;
 VstIntPtr VSTCALLBACK
@@ -69,17 +69,17 @@ hostCallback(AEffect *plugin, long opcode, long index,
     switch (opcode) {
 
     case audioMasterAutomate:
-        if (plugin)
-            plugin->setParameter(plugin, index, opt);
-        break;
+	if (plugin)
+	    plugin->setParameter(plugin, index, opt);
+	break;
 
     case audioMasterVersion:
 	return kVstVersion;
 
     case audioMasterIdle:
-        if (plugin)
-            plugin->dispatcher(plugin, effEditIdle, 0, 0, 0, 0.0f);
-        break;
+	if (plugin)
+	    plugin->dispatcher(plugin, effEditIdle, 0, 0, 0, 0.0f);
+	break;
 
     case audioMasterGetVendorString:
 	strcpy((char *)ptr, "Chris Cannam");
@@ -101,14 +101,14 @@ hostCallback(AEffect *plugin, long opcode, long index,
 	    !strcmp((char*)ptr, "sendVstTimeInfo") ||
 	    !strcmp((char*)ptr, "sizeWindow") ||
 	    !strcmp((char*)ptr, "supplyIdle") ||
-            !strcmp((char*)ptr, "receiveVstEvents") ||
-            !strcmp((char*)ptr, "receiveVstMidiEvent")) {
+	    !strcmp((char*)ptr, "receiveVstEvents") ||
+	    !strcmp((char*)ptr, "receiveVstMidiEvent")) {
 	    return 1;
 	}
 	break;
 
     case audioMasterGetTime:
-        memset(&timeInfo, 0, sizeof(VstTimeInfo_R));
+	memset(&timeInfo, 0, sizeof(VstTimeInfo_R));
 	timeInfo.samplePos = 0;
 	timeInfo.sampleRate = 48000;
 	timeInfo.flags = 0; // don't mark anything valid except default samplePos/Rate
@@ -136,7 +136,7 @@ hostCallback(AEffect *plugin, long opcode, long index,
 
     case DEPRECATED_VST_SYMBOL(audioMasterGetParameterQuantization):
 	return 1;
-	
+
     case DEPRECATED_VST_SYMBOL(audioMasterNeedIdle):
 	return 1;
 
@@ -159,7 +159,7 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdline, int cmdshow)
     cout << "Copyright (c) 2004-2010 Chris Cannam" << endl;
 
     if (cmdline && cmdline[0]) destFile = strdup(cmdline);
-    
+
     int targetfd = 0;
     if (destFile) {
 	if ((targetfd = open(destFile, O_WRONLY)) < 0) {
@@ -176,10 +176,10 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdline, int cmdshow)
     HINSTANCE libHandle = 0;
 
     std::vector<std::string> vstPath = Paths::getPath
-	("VST_PATH", "/usr/local/lib/vst:/usr/lib/vst", "/vst");
+				       ("VST_PATH", "/usr/local/lib/vst:/usr/lib/vst", "/vst");
 
     for (size_t i = 0; i < vstPath.size(); ++i) {
-	
+
 	std::string vstDir = vstPath[i];
 
 	DIR *directory = opendir(vstDir.c_str());
@@ -206,9 +206,9 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdline, int cmdshow)
 	    haveCacheDir = true;
 	    closedir(test);
 	}
-	
+
 	while ((entry = readdir(directory))) {
-	    
+
 	    // For each plugin, we write:
 	    //
 	    // dll name (64 chars)
@@ -218,7 +218,7 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdline, int cmdshow)
 	    // have editor (bool)
 	    // input count (int)
 	    // output count (int)
-	    // 
+	    //
 	    // parameter count (int)
 	    // then for each parameter:
 	    // name (64 chars)
@@ -243,7 +243,7 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdline, int cmdshow)
 	    std::string cacheFileName = cacheDir + "/" + libname + ".cache";
 
 	    if (haveCacheDir) {
-	
+
 		struct stat st;
 		if (!stat(cacheFileName.c_str(), &st)) {
 		    int testfd = open(cacheFileName.c_str(), O_RDONLY);
@@ -287,11 +287,11 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdline, int cmdshow)
 		} else {
 		    libPath = vstDir + "/" + libname;
 		}
-		
+
 		libHandle = LoadLibrary(libPath.c_str());
 		cerr << "dssi-vst-scanner: " << (libHandle ? "" : "not ")
 		     << "found in " << libPath << endl;
-		
+
 		if (!libHandle) {
 		    if (home && home[0] != '\0') {
 			if (libPath.substr(0, strlen(home)) == home) {
@@ -302,22 +302,22 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdline, int cmdshow)
 			     << "found in " << libPath << endl;
 		    }
 		}
-		
+
 		if (!libHandle) {
 		    cerr << "dssi-vst-scanner: Couldn't load DLL " << libPath << endl;
 		    goto done;
 		}
 
 		getInstance = (AEffect*(__stdcall*)(audioMasterCallback))
-		    GetProcAddress(libHandle, NEW_PLUGIN_ENTRY_POINT);
+			      GetProcAddress(libHandle, NEW_PLUGIN_ENTRY_POINT);
 
 		if (!getInstance) {
 		    getInstance = (AEffect*(__stdcall*)(audioMasterCallback))
-			GetProcAddress(libHandle, OLD_PLUGIN_ENTRY_POINT);
+				  GetProcAddress(libHandle, OLD_PLUGIN_ENTRY_POINT);
 
 		    if (!getInstance) {
 			cerr << "dssi-vst-scanner: VST entrypoints \""
-			     << NEW_PLUGIN_ENTRY_POINT << "\" or \"" 
+			     << NEW_PLUGIN_ENTRY_POINT << "\" or \""
 			     << OLD_PLUGIN_ENTRY_POINT << "\" not found in DLL \""
 			     << libname << "\"" << endl;
 			goto done;
@@ -357,9 +357,9 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdline, int cmdshow)
 
 		memset(buffer, 0, 65);
 		plugin->dispatcher(plugin, effGetVendorString, 0, 0, buffer, 0);
-                if (buffer[0] == '\0') {
-                    snprintf(buffer, 64, "Unknown");
-                }
+		if (buffer[0] == '\0') {
+		    snprintf(buffer, 64, "Unknown");
+		}
 		write(fd, buffer, 64);
 
 		synth = false;
@@ -382,9 +382,9 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdline, int cmdshow)
 		for (i = 0; i < params; ++i) {
 		    memset(buffer, 0, 65);
 		    plugin->dispatcher(plugin, effGetParamName, i, 0, buffer, 0);
-                    if (buffer[0] == '\0') {
-                        snprintf(buffer, 64, "Unnamed %i", i);
-                    }
+		    if (buffer[0] == '\0') {
+			snprintf(buffer, 64, "Unnamed %i", i);
+		    }
 		    write(fd, buffer, 64);
 		    float f = plugin->getParameter(plugin, i);
 		    write(fd, &f, sizeof(float));
@@ -400,13 +400,13 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdline, int cmdshow)
 		    // pass in <index> as well, just in case
 		    plugin->dispatcher(plugin, effSetProgram, 0, i, NULL, 0);
 		    plugin->dispatcher(plugin, effGetProgramName, i, 0, buffer, 0);
-                    if (buffer[0] == '\0') {
-                        snprintf(buffer, 64, "Unnamed %i", i);
-                    }
+		    if (buffer[0] == '\0') {
+			snprintf(buffer, 64, "Unnamed %i", i);
+		    }
 		    write(fd, buffer, 64);
 		}
 
-	    done:
+done:
 		if (plugin) plugin->dispatcher(plugin, effClose, 0, 0, NULL, 0);
 		FreeLibrary(libHandle);
 	    }
@@ -442,6 +442,6 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR cmdline, int cmdshow)
     if (targetfd != 0) {
 	close(targetfd);
     }
-    
+
     return 0;
 }

@@ -45,6 +45,6 @@ protected:
 private:
     RemoteVSTClient(const RemoteVSTClient &); // not provided
     RemoteVSTClient &operator=(const RemoteVSTClient &); // not provided
-};    
+};
 
 #endif

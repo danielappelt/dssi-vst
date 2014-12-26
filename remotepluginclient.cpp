@@ -83,16 +83,16 @@ RemotePluginClient::RemotePluginClient() :
     ftruncate(m_shmControlFd, sizeof(ShmControl));
     m_shmControl = static_cast<ShmControl *>(mmap(0, sizeof(ShmControl), PROT_READ | PROT_WRITE, MAP_SHARED, m_shmControlFd, 0));
     if (!m_shmControl) {
-        cleanup();
-        throw((std::string)"Failed to mmap shared memory file");
+	cleanup();
+	throw((std::string)"Failed to mmap shared memory file");
     }
 
     memset(m_shmControl, 0, sizeof(ShmControl));
     if (sem_init(&m_shmControl->runServer, 1, 0)) {
-        throw((std::string)"Failed to initialize shared memory semaphore");
+	throw((std::string)"Failed to initialize shared memory semaphore");
     }
     if (sem_init(&m_shmControl->runClient, 1, 0)) {
-        throw((std::string)"Failed to initialize shared memory semaphore");
+	throw((std::string)"Failed to initialize shared memory semaphore");
     }
 
     sprintf(tmpFileBase, "/dssi-vst-rplugin_shm_XXXXXX");
@@ -123,7 +123,7 @@ RemotePluginClient::syncStartup()
     for (int attempt = 0; attempt < timeout; ++attempt) {
 
 	if ((m_controlRequestFd =
-	     open(m_controlRequestFileName, O_WRONLY | O_NONBLOCK)) >= 0) {
+		 open(m_controlRequestFileName, O_WRONLY | O_NONBLOCK)) >= 0) {
 	    connected = true;
 	    break;
 	} else if (errno != ENXIO) {
@@ -160,8 +160,8 @@ RemotePluginClient::cleanup()
 	m_shm = 0;
     }
     if (m_shmControl) {
-        munmap(m_shmControl, sizeof(ShmControl));
-        m_shmControl = 0;
+	munmap(m_shmControl, sizeof(ShmControl));
+	m_shmControl = 0;
     }
     if (m_controlRequestFd >= 0) {
 	close(m_controlRequestFd);
@@ -176,8 +176,8 @@ RemotePluginClient::cleanup()
 	m_shmFd = -1;
     }
     if (m_shmControlFd >= 0) {
-        close(m_shmControlFd);
-        m_shmControlFd = -1;
+	close(m_shmControlFd);
+	m_shmControlFd = -1;
     }
     if (m_controlRequestFileName) {
 	unlink(m_controlRequestFileName);
@@ -195,9 +195,9 @@ RemotePluginClient::cleanup()
 	m_shmFileName = 0;
     }
     if (m_shmControlFileName) {
-        shm_unlink(m_shmControlFileName);
-        free(m_shmControlFileName);
-        m_shmControlFileName = 0;
+	shm_unlink(m_shmControlFileName);
+	free(m_shmControlFileName);
+	m_shmControlFileName = 0;
     }
 }
 
@@ -384,7 +384,7 @@ RemotePluginClient::getProgramName(int n)
     writeOpcode(m_controlRequestFd, RemotePluginGetProgramName);
     writeInt(m_controlRequestFd, n);
     return readString(m_controlResponseFd);
-}    
+}
 
 void
 RemotePluginClient::setCurrentProgram(int n)
@@ -453,7 +453,7 @@ RemotePluginClient::process(float **inputs, float **outputs)
     waitForServer();
 
     for (int i = 0; i < m_numOutputs; ++i) {
-        memcpy(outputs[i], m_shm + (i + m_numInputs) * blocksz, blocksz);
+	memcpy(outputs[i], m_shm + (i + m_numInputs) * blocksz, blocksz);
     }
 
 
@@ -501,7 +501,7 @@ RemotePluginClient::showGUI(std::string guiData)
 {
     writeOpcode(m_controlRequestFd, RemotePluginShowGUI);
     writeString(m_controlRequestFd, guiData);
-}    
+}
 
 void
 RemotePluginClient::hideGUI()

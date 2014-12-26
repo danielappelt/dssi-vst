@@ -68,7 +68,7 @@ debug_handler(const char *path, const char *types, lo_arg **argv,
 
     for (i = 0; i < argc; ++i) {
 	cerr << "arg " << i << ": type '" << types[i] << "': ";
-        lo_arg_pp((lo_type)types[i], argv[i]);
+	lo_arg_pp((lo_type)types[i], argv[i]);
 	cerr << endl;
     }
 
@@ -78,7 +78,7 @@ debug_handler(const char *path, const char *types, lo_arg **argv,
 
 int
 program_handler(const char *path, const char *types, lo_arg **argv,
-	       int argc, void *data, void *user_data)
+		int argc, void *data, void *user_data)
 {
     cerr << "dssi-vst_gui: program_handler" << endl;
     return 0;
@@ -151,13 +151,12 @@ readFromPlugin()
 	tryRead(fifoFd, &opcode, sizeof(RemotePluginOpcode));
 
 	switch (opcode) {
-	    
+
 	case RemotePluginIsReady:
 	    ready = true;
 	    break;
 
-	case RemotePluginSetParameter:
-	{
+	case RemotePluginSetParameter: {
 	    int port = readInt(fifoFd);
 	    float value = readFloat(fifoFd);
 

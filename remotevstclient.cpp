@@ -42,7 +42,7 @@ RemoteVSTClient::RemoteVSTClient(std::string dllName, bool showGUI) :
     // See also RemoteVSTClient::queryPlugins below.
 
     std::vector<std::string> dssiPath = Paths::getPath
-	("DSSI_PATH", "/usr/local/lib/dssi:/usr/lib/dssi", "/.dssi");
+					("DSSI_PATH", "/usr/local/lib/dssi:/usr/lib/dssi", "/.dssi");
 
     bool found = false;
 
@@ -80,14 +80,14 @@ RemoteVSTClient::RemoteVSTClient(std::string dllName, bool showGUI) :
 	std::cerr << "RemoteVSTClient: executing "
 		  << fileName << " " << argStr << std::endl;
 
-        const char* fileNameStr = fileName.c_str();
-        if ((child = vfork()) < 0) {
+	const char* fileNameStr = fileName.c_str();
+	if ((child = vfork()) < 0) {
 	    cleanup();
 	    throw((std::string)"Fork failed");
 	} else if (child == 0) { // child process
 	    if (execlp(fileNameStr, fileNameStr, argStr, NULL)) {
-                // vfork() docs say you shouldn't call a function here,
-                // but it seems to work for me.
+		// vfork() docs say you shouldn't call a function here,
+		// but it seems to work for me.
 		perror("Exec failed");
 		_exit(1);
 	    }
@@ -125,40 +125,40 @@ RemoteVSTClient::addFromFd(int fd, PluginRecord &rec)
 	// This is acceptable here; it probably just means we're done
 	return false;
     }
-    
+
     tryRead(fd, buffer, 64);
     rec.pluginName = buffer;
-    
+
 //	    std::cerr << "Plugin " << rec.pluginName << std::endl;
-    
+
     tryRead(fd, buffer, 64);
     rec.vendorName = buffer;
-    
+
     tryRead(fd, &rec.isSynth, sizeof(bool));
     tryRead(fd, &rec.hasGUI, sizeof(bool));
     tryRead(fd, &rec.inputs, sizeof(int));
     tryRead(fd, &rec.outputs, sizeof(int));
     tryRead(fd, &rec.parameters, sizeof(int));
-    
+
 //	    std::cerr << rec.parameters << " parameters" << std::endl;
-    
+
     for (int i = 0; i < rec.parameters; ++i) {
-        try {
-            tryRead(fd, buffer, 64);
-        } catch (RemotePluginClosedException) {
-            return false; // plugin check failed
-        }
+	try {
+	    tryRead(fd, buffer, 64);
+	} catch (RemotePluginClosedException) {
+	    return false; // plugin check failed
+	}
 	rec.parameterNames.push_back(std::string(buffer));
 	float f;
 	tryRead(fd, &f, sizeof(float));
 	rec.parameterDefaults.push_back(f);
 //		std::cerr << "Parameter " << i << ": name " << buffer << ", default " << f << std::endl;
     }
-    
+
     tryRead(fd, &rec.programs, sizeof(int));
-    
+
 //	    std::cerr << rec.programs << " programs" << std::endl;
-    
+
     for (int i = 0; i < rec.programs; ++i) {
 	tryRead(fd, buffer, 64);
 	rec.programNames.push_back(std::string(buffer));
@@ -167,7 +167,7 @@ RemoteVSTClient::addFromFd(int fd, PluginRecord &rec)
 
     return true;
 }
-    
+
 void
 RemoteVSTClient::queryPlugins(std::vector<PluginRecord> &plugins)
 {
@@ -176,9 +176,9 @@ RemoteVSTClient::queryPlugins(std::vector<PluginRecord> &plugins)
     // plugins and we don't need to run the (Wine-based) scanner.
     // If there are, but they all have up-to-date cache files, then
     // we can just read those and again not have to run the scanner.
-    
+
     std::vector<std::string> vstPath = Paths::getPath
-	("VST_PATH", "/usr/local/lib/vst:/usr/lib/vst", "/vst");
+				       ("VST_PATH", "/usr/local/lib/vst:/usr/lib/vst", "/vst");
 
     bool haveDll = false;
     bool haveAllCaches = false;
@@ -195,14 +195,14 @@ RemoteVSTClient::queryPlugins(std::vector<PluginRecord> &plugins)
     }
 
     for (size_t i = 0; i < vstPath.size(); ++i) {
-	
+
 	std::string vstDir = vstPath[i];
 	DIR *directory = opendir(vstDir.c_str());
 	if (!directory) continue;
 	struct dirent *entry;
 
 	while ((entry = readdir(directory))) {
-	    
+
 	    std::string libname = entry->d_name;
 
 	    if (libname[0] != '.' &&
@@ -223,7 +223,7 @@ RemoteVSTClient::queryPlugins(std::vector<PluginRecord> &plugins)
 		    } else {
 			int testfd = open(cacheFileName.c_str(), O_RDONLY);
 			int testVersion = 0;
-			if (testfd < 0 || 
+			if (testfd < 0 ||
 			    read(testfd, &testVersion, sizeof(int)) != sizeof(int) ||
 			    testVersion != version) {
 			    haveAllCaches = false;
@@ -241,19 +241,19 @@ RemoteVSTClient::queryPlugins(std::vector<PluginRecord> &plugins)
     if (!haveDll) return;
 
     if (haveCacheDir && haveAllCaches) {
-	
+
 	std::cerr << "RemoteVSTClient: all cache files are up-to-date, "
 		  << "not running scanner" << std::endl;
 
 	for (size_t i = 0; i < vstPath.size(); ++i) {
-	
+
 	    std::string vstDir = vstPath[i];
 	    DIR *directory = opendir(vstDir.c_str());
 	    if (!directory) continue;
 	    struct dirent *entry;
 
 	    while ((entry = readdir(directory))) {
-	    
+
 		std::string libname = entry->d_name;
 
 		if (libname[0] != '.' &&
@@ -316,7 +316,7 @@ RemoteVSTClient::queryPlugins(std::vector<PluginRecord> &plugins)
     // See also the RemoteVSTClient constructor above.
 
     std::vector<std::string> dssiPath = Paths::getPath
-	("DSSI_PATH", "/usr/local/lib/dssi:/usr/lib/dssi", "/.dssi");
+					("DSSI_PATH", "/usr/local/lib/dssi:/usr/lib/dssi", "/.dssi");
 
     bool found = false;
     pid_t child;

@@ -36,7 +36,7 @@ public:
 
     void         reset();
     void         terminate();
-    
+
     int          getInputCount();
     int          getOutputCount();
 

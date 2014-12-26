@@ -21,8 +21,7 @@
 
 #define SHM_RING_BUFFER_SIZE 2048
 
-struct RingBuffer
-{
+struct RingBuffer {
     int head;
     int tail;
     int written;
@@ -30,17 +29,16 @@ struct RingBuffer
     char buf[SHM_RING_BUFFER_SIZE];
 };
 
-struct ShmControl
-{
+struct ShmControl {
     // 32 and 64-bit binaries align semaphores differently.
     // Let's make sure there's plenty of room for either one.
     union {
-        sem_t runServer;
-        char alignServerSem[32];
+	sem_t runServer;
+	char alignServerSem[32];
     };
     union {
-        sem_t runClient;
-        char alignClientSem[32];
+	sem_t runClient;
+	char alignClientSem[32];
     };
     RingBuffer ringBuffer;
 };

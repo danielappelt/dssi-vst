@@ -43,7 +43,7 @@ RemotePluginServer::RemotePluginServer(std::string fileIdentifiers) :
     m_outputs(0)
 {
     char tmpFileBase[60];
-    
+
     sprintf(tmpFileBase, "/tmp/rplugin_crq_%s",
 	    fileIdentifiers.substr(0, 6).c_str());
     m_controlRequestFileName = strdup(tmpFileBase);
@@ -52,7 +52,7 @@ RemotePluginServer::RemotePluginServer(std::string fileIdentifiers) :
 	cleanup();
 	throw((std::string)"Failed to open FIFO");
     }
-    
+
     sprintf(tmpFileBase, "/tmp/rplugin_crs_%s",
 	    fileIdentifiers.substr(6, 6).c_str());
     m_controlResponseFileName = strdup(tmpFileBase);
@@ -70,16 +70,16 @@ RemotePluginServer::RemotePluginServer(std::string fileIdentifiers) :
 
     m_shmControlFd = shm_open(m_shmControlFileName, O_RDWR, 0);
     if (m_shmControlFd < 0) {
-        tryWrite(m_controlResponseFd, &b, sizeof(bool));
+	tryWrite(m_controlResponseFd, &b, sizeof(bool));
 	cleanup();
 	throw((std::string)"Failed to open or create shared memory file");
     }
 
     m_shmControl = static_cast<ShmControl *>(mmap(0, sizeof(ShmControl), PROT_READ | PROT_WRITE, MAP_SHARED, m_shmControlFd, 0));
     if (!m_shmControl) {
-        tryWrite(m_controlResponseFd, &b, sizeof(bool));
-        cleanup();
-        throw((std::string)"Failed to mmap shared memory file");
+	tryWrite(m_controlResponseFd, &b, sizeof(bool));
+	cleanup();
+	throw((std::string)"Failed to mmap shared memory file");
     }
 
     sprintf(tmpFileBase, "/dssi-vst-rplugin_shm_%s",
@@ -109,8 +109,8 @@ RemotePluginServer::cleanup()
 	m_shm = 0;
     }
     if (m_shmControl) {
-        munmap(m_shmControl, sizeof(ShmControl));
-        m_shmControl = 0;
+	munmap(m_shmControl, sizeof(ShmControl));
+	m_shmControl = 0;
     }
     if (m_controlRequestFd >= 0) {
 	close(m_controlRequestFd);
@@ -125,8 +125,8 @@ RemotePluginServer::cleanup()
 	m_shmFd = -1;
     }
     if (m_shmControlFd >= 0) {
-        close(m_shmControlFd);
-        m_shmControlFd = -1;
+	close(m_shmControlFd);
+	m_shmControlFd = -1;
     }
     if (m_controlRequestFileName) {
 	free(m_controlRequestFileName);
@@ -141,8 +141,8 @@ RemotePluginServer::cleanup()
 	m_shmFileName = 0;
     }
     if (m_shmControlFileName) {
-        free(m_shmControlFileName);
-        m_shmControlFileName = 0;
+	free(m_shmControlFileName);
+	m_shmControlFileName = 0;
     }
 
     delete m_inputs;
@@ -183,20 +183,20 @@ RemotePluginServer::sizeShm()
 	}
 	std::cerr << "sized shm to " << sz << ", " << m_numInputs << " inputs and " << m_numOutputs << " outputs" << std::endl;
     }
-}    
+}
 
 void
 RemotePluginServer::dispatchControl(int timeout)
 {
     struct pollfd pfd;
-    
+
     pfd.fd = m_controlRequestFd;
     pfd.events = POLLIN | POLLPRI | POLLERR | POLLHUP | POLLNVAL;
 
     if (poll(&pfd, 1, timeout) < 0) {
 	throw RemotePluginClosedException();
     }
-    
+
     if ((pfd.revents & POLLIN) || (pfd.revents & POLLPRI)) {
 	dispatchControlEvents();
     } else if (pfd.revents) {
@@ -213,30 +213,30 @@ RemotePluginServer::dispatchProcess(int timeout)
     ts_timeout.tv_sec += seconds;
     ts_timeout.tv_nsec += (timeout - seconds * 1000) * 1000000;
     if (ts_timeout.tv_nsec >= 1000000000) {
-        ts_timeout.tv_nsec -= 1000000000;
-        ts_timeout.tv_sec++;
+	ts_timeout.tv_nsec -= 1000000000;
+	ts_timeout.tv_sec++;
     }
 
     if (sem_timedwait(&m_shmControl->runServer, &ts_timeout)) {
-        if (errno == ETIMEDOUT) {
-            return;
-        } else {
-            throw RemotePluginClosedException();
-        }
+	if (errno == ETIMEDOUT) {
+	    return;
+	} else {
+	    throw RemotePluginClosedException();
+	}
     }
 
     while (dataAvailable(&m_shmControl->ringBuffer)) {
-        dispatchProcessEvents();
+	dispatchProcessEvents();
     }
 
     if (sem_post(&m_shmControl->runClient)) {
-        std::cerr << "Could not post to semaphore\n";
+	std::cerr << "Could not post to semaphore\n";
     }
 }
 
 void
 RemotePluginServer::dispatchProcessEvents()
-{    
+{
     RemotePluginOpcode opcode = RemotePluginNoOpcode;
 
     tryRead(&m_shmControl->ringBuffer, &opcode, sizeof(RemotePluginOpcode));
@@ -245,8 +245,7 @@ RemotePluginServer::dispatchProcessEvents()
 
     switch (opcode) {
 
-    case RemotePluginProcess:
-    {
+    case RemotePluginProcess: {
 	if (m_bufferSize < 0) {
 	    std::cerr << "ERROR: RemotePluginServer: buffer size must be set before process" << std::endl;
 	    return;
@@ -283,11 +282,10 @@ RemotePluginServer::dispatchProcessEvents()
 //	std::cerr << "server process: written" << std::endl;
 	break;
     }
-	
-    case RemotePluginSetParameter:
-    {
-        int pn(readInt(&m_shmControl->ringBuffer));
-        setParameter(pn, readFloat(&m_shmControl->ringBuffer));
+
+    case RemotePluginSetParameter: {
+	int pn(readInt(&m_shmControl->ringBuffer));
+	setParameter(pn, readFloat(&m_shmControl->ringBuffer));
 	break;
     }
 
@@ -295,8 +293,7 @@ RemotePluginServer::dispatchProcessEvents()
 	setCurrentProgram(readInt(&m_shmControl->ringBuffer));
 	break;
 
-    case RemotePluginSendMIDIData:
-    {
+    case RemotePluginSendMIDIData: {
 	int events = 0;
 	int *frameoffsets = 0;
 	unsigned char *data = readMIDIData(&m_shmControl->ringBuffer, &frameoffsets, events);
@@ -308,8 +305,7 @@ RemotePluginServer::dispatchProcessEvents()
 	break;
     }
 
-    case RemotePluginSetBufferSize:
-    {
+    case RemotePluginSetBufferSize: {
 	int newSize = readInt(&m_shmControl->ringBuffer);
 	setBufferSize(newSize);
 	m_bufferSize = newSize;
@@ -319,7 +315,7 @@ RemotePluginServer::dispatchProcessEvents()
     case RemotePluginSetSampleRate:
 	setSampleRate(readInt(&m_shmControl->ringBuffer));
 	break;
-    
+
     default:
 	std::cerr << "WARNING: RemotePluginServer::dispatchProcessEvents: unexpected opcode "
 		  << opcode << std::endl;
@@ -328,7 +324,7 @@ RemotePluginServer::dispatchProcessEvents()
 
 void
 RemotePluginServer::dispatchControlEvents()
-{    
+{
     RemotePluginOpcode opcode = RemotePluginNoOpcode;
     static float *parameterBuffer = 0;
 
@@ -347,11 +343,11 @@ RemotePluginServer::dispatchControlEvents()
     case RemotePluginGetMaker:
 	writeString(m_controlResponseFd, getMaker());
 	break;
-    
+
     case RemotePluginTerminate:
 	terminate();
 	break;
-    
+
     case RemotePluginGetInputCount:
 	m_numInputs = getInputCount();
 	writeInt(m_controlResponseFd, m_numInputs);
@@ -365,21 +361,20 @@ RemotePluginServer::dispatchControlEvents()
     case RemotePluginGetParameterCount:
 	writeInt(m_controlResponseFd, getParameterCount());
 	break;
-	
+
     case RemotePluginGetParameterName:
 	writeString(m_controlResponseFd, getParameterName(readInt(m_controlRequestFd)));
 	break;
-    
+
     case RemotePluginGetParameter:
 	writeFloat(m_controlResponseFd, getParameter(readInt(m_controlRequestFd)));
 	break;
-    
+
     case RemotePluginGetParameterDefault:
 	writeFloat(m_controlResponseFd, getParameterDefault(readInt(m_controlRequestFd)));
 	break;
 
-    case RemotePluginGetParameters:
-    {
+    case RemotePluginGetParameters: {
 	if (!parameterBuffer) {
 	    parameterBuffer = new float[getParameterCount()];
 	}
@@ -390,13 +385,12 @@ RemotePluginServer::dispatchControlEvents()
 	break;
     }
 
-    case RemotePluginHasMIDIInput:
-    {
+    case RemotePluginHasMIDIInput: {
 	bool m = hasMIDIInput();
 	tryWrite(m_controlResponseFd, &m, sizeof(bool));
 	break;
     }
-       
+
     case RemotePluginGetProgramCount:
 	writeInt(m_controlResponseFd, getProgramCount());
 	break;
@@ -405,16 +399,14 @@ RemotePluginServer::dispatchControlEvents()
 	writeString(m_controlResponseFd, getProgramName(readInt(m_controlRequestFd)));
 	break;
 
-    case RemotePluginIsReady:
-    {
+    case RemotePluginIsReady: {
 	if (!m_shm) sizeShm();
 	bool b(isReady());
 	std::cerr << "isReady: returning " << b << std::endl;
 	tryWrite(m_controlResponseFd, &b, sizeof(bool));
     }
 
-    case RemotePluginSetDebugLevel:
-    {
+    case RemotePluginSetDebugLevel: {
 	RemotePluginDebugLevel newLevel = m_debugLevel;
 	tryRead(m_controlRequestFd, &newLevel, sizeof(RemotePluginDebugLevel));
 	setDebugLevel(newLevel);
@@ -422,38 +414,33 @@ RemotePluginServer::dispatchControlEvents()
 	break;
     }
 
-    case RemotePluginWarn:
-    {
+    case RemotePluginWarn: {
 	bool b = warn(readString(m_controlRequestFd));
 	tryWrite(m_controlResponseFd, &b, sizeof(bool));
 	break;
     }
 
-    case RemotePluginShowGUI:
-    {
+    case RemotePluginShowGUI: {
 	showGUI(readString(m_controlRequestFd));
 	break;
     }
 
-    case RemotePluginHideGUI:
-    {
+    case RemotePluginHideGUI: {
 	hideGUI();
 	break;
     }
 
     //Deryabin Andrew: vst chunks support
-    case RemotePluginGetVSTChunk:
-    {
-        std::vector<char> chunk = getVSTChunk();
-        writeRaw(m_controlResponseFd, chunk);
-        break;
+    case RemotePluginGetVSTChunk: {
+	std::vector<char> chunk = getVSTChunk();
+	writeRaw(m_controlResponseFd, chunk);
+	break;
     }
 
-    case RemotePluginSetVSTChunk:
-    {
-        std::vector<char> chunk = readRaw(m_controlRequestFd);
-        setVSTChunk(chunk);
-        break;
+    case RemotePluginSetVSTChunk: {
+	std::vector<char> chunk = readRaw(m_controlRequestFd);
+	setVSTChunk(chunk);
+	break;
     }
     //Deryabin Andrew: vst chunks support: end code
 

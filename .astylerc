@@ -1,0 +1,14 @@
+# Linux style uses linux brackets. Opening brackets are broken from namespace, class,
+# and function definitions. Brackets are attached to everything else including statements
+# within a function, arrays, structs, and enums.
+style=linux
+# This force-tab option allows the tab length to be set to a length that is different
+# than the indent length. This may cause the indentation to be a mix of both tabs
+# and spaces. Tabs will be used to indent, if possible. If a tab indent cannot be
+# used, spaces will be used instead.
+-xT
+# Don't break one-line blocks.
+-O
+# Do not retain a backup of the original file.
+-n
+-v
