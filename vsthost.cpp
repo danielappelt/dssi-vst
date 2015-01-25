@@ -54,6 +54,8 @@ struct JackData {
 
 static JackData jackData;
 
+char *chunkFile = NULL;
+
 void closeJack();
 
 
@@ -86,6 +88,10 @@ bail(int sig)
 
     if (plugin) {
 	delete plugin;
+    }
+
+    if(chunkFile) {
+	free(chunkFile);
     }
 
     // ignore term signals, then send one to the process group
@@ -189,16 +195,9 @@ alsaSeqCallback(snd_seq_t *alsaSeqHandle)
 }
 
 int
-openAlsaSeq(const char *pluginName)
+openAlsaSeq(const char *clientName)
 {
     int portid;
-    char alsaName[75];
-
-    if (pluginName[0]) {
-	sprintf(alsaName, "%s VST", pluginName);
-    } else {
-	sprintf(alsaName, "VST Host");
-    }
 
     alsaSeqHandle = 0;
 
@@ -207,10 +206,10 @@ openAlsaSeq(const char *pluginName)
 	return 1;
     }
 
-    snd_seq_set_client_name(alsaSeqHandle, alsaName);
+    snd_seq_set_client_name(alsaSeqHandle, clientName);
 
     if ((portid = snd_seq_create_simple_port
-		  (alsaSeqHandle, alsaName,
+		  (alsaSeqHandle, clientName,
 		   SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
 		   SND_SEQ_PORT_TYPE_APPLICATION)) < 0) {
 	fprintf(stderr, "ERROR: Failed to create ALSA sequencer port\n");
@@ -330,23 +329,11 @@ shutdownJack(void *arg)
 }
 
 int
-openJack(const char *pluginName)
+openJack(const char *clientName)
 {
     const char **ports = 0;
-    char jackName[26];
-    char tmpbuf[21];
-    int i = 0, j = 0;
 
-    for (i = 0; i < 20 && pluginName[i]; ++i) {
-	if (isalpha(pluginName[i])) {
-	    tmpbuf[j] = tolower(pluginName[i]);
-	    ++j;
-	}
-    }
-    tmpbuf[j] = '\0';
-    snprintf(jackName, 26, "vst_%s", tmpbuf);
-
-    if ((jackData.client = jack_client_open(jackName, JackNullOption, NULL)) == 0) {
+    if ((jackData.client = jack_client_open(clientName, JackNullOption, NULL)) == 0) {
 	fprintf(stderr, "ERROR: Failed to connect to JACK server -- jackd not running?\n");
 	return 1;
     }
@@ -451,10 +438,91 @@ closeJack()
 }
 
 void
+load_chunk()
+{
+    // Try to load VST chunk data from chunkFile.
+    int fd = open(chunkFile, O_RDONLY);
+    if(fd != -1) {
+	plugin->setVSTChunk(rdwr_readRaw(fd, chunkFile, 0));
+	close(fd);
+    }
+}
+
+void
+save_chunk(int sig)
+{
+    // Try to save VST chunk data to chunkFile.
+    // http://pubs.opengroup.org/onlinepubs/9699919799/functions/open.html
+    int fd = open(chunkFile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if(fd != -1) {
+	rdwr_writeRaw(fd, plugin->getVSTChunk(), chunkFile, 0);
+	close(fd);
+    }
+}
+
+void
 usage()
 {
     fprintf(stderr, "Usage: vsthost [-n] <dll>\n    -n  No GUI\n");
     exit(2);
+}
+
+void
+init(const char *clientName)
+{
+    // prevent child threads from wanting to handle signals
+    sigset_t _signals;
+    sigemptyset(&_signals);
+    sigaddset(&_signals, SIGHUP);
+    sigaddset(&_signals, SIGINT);
+    sigaddset(&_signals, SIGQUIT);
+    sigaddset(&_signals, SIGPIPE);
+    sigaddset(&_signals, SIGTERM);
+    sigaddset(&_signals, SIGUSR1);
+    sigaddset(&_signals, SIGUSR2);
+    sigaddset(&_signals, SIGCHLD);
+    pthread_sigmask(SIG_BLOCK, &_signals, 0);
+
+    if (plugin->hasMIDIInput() && openAlsaSeq(clientName)) {
+	plugin->warn("Failed to connect to ALSA sequencer MIDI interface");
+	bail(0);
+    }
+
+    if (openJack(clientName)) {
+	plugin->warn("Failed to connect to JACK audio server (jackd not running?)");
+	bail(0);
+    }
+
+    // restore signal handling
+    pthread_sigmask(SIG_UNBLOCK, &_signals, 0);
+
+    ready = true;
+}
+
+void
+run()
+{
+    // Go into an endless loop. Wait for ALSA midi events if midi is supported.
+    if (alsaSeqHandle) {
+	int npfd;
+	struct pollfd *pfd;
+
+	npfd = snd_seq_poll_descriptors_count(alsaSeqHandle, POLLIN);
+	pfd = (struct pollfd *)alloca(npfd * sizeof(struct pollfd));
+	snd_seq_poll_descriptors(alsaSeqHandle, pfd, npfd, POLLIN);
+
+	while (1) {
+	    if (poll(pfd, npfd, 1000) > 0) {
+		alsaSeqCallback(alsaSeqHandle);
+	    }
+	    if (exiting) bail(0);
+	}
+    } else {
+	while (1) {
+	    sleep (1);
+	    if (exiting) bail(0);
+	}
+    }
 }
 
 int
@@ -462,9 +530,6 @@ main(int argc, char **argv)
 {
     char *dllname = 0;
     bool  gui = true;
-
-    int npfd;
-    struct pollfd *pfd;
 
     while (1) {
 	int c = getopt(argc, argv, "nd:");
@@ -496,6 +561,17 @@ main(int argc, char **argv)
     sigaction(SIGTERM, &sa, 0);
     sigaction(SIGPIPE, &sa, 0);
 
+    // Signals SIGUSR1, and SIGUSR2 trigger saving of VST chunk data.
+    struct sigaction saSave;
+    saSave.sa_handler = save_chunk;
+    sigemptyset(&saSave.sa_mask);
+    saSave.sa_flags = 0;
+    // SIGUSR1 is useful for LADISH support. It might be problematic though as it
+    // is also used by wine in order to suspend misbehaving processes.
+    sigaction(SIGUSR1, &saSave, 0);
+    sigaction(SIGUSR2, &saSave, 0);
+
+    // This should be set before any calls to bail().
     jackData.client = 0;
 
     try {
@@ -505,56 +581,35 @@ main(int argc, char **argv)
 	bail(0);
     }
 
-    std::string pluginName = plugin->getName();
-
-    // prevent child threads from wanting to handle signals
-    sigset_t _signals;
-    sigemptyset(&_signals);
-    sigaddset(&_signals, SIGHUP);
-    sigaddset(&_signals, SIGINT);
-    sigaddset(&_signals, SIGQUIT);
-    sigaddset(&_signals, SIGPIPE);
-    sigaddset(&_signals, SIGTERM);
-    sigaddset(&_signals, SIGUSR1);
-    sigaddset(&_signals, SIGUSR2);
-    sigaddset(&_signals, SIGCHLD);
-    pthread_sigmask(SIG_BLOCK, &_signals, 0);
-
-    bool hasMIDI = plugin->hasMIDIInput();
-
-    if (hasMIDI) {
-	if (openAlsaSeq(pluginName.c_str())) {
-	    plugin->warn("Failed to connect to ALSA sequencer MIDI interface");
-	    bail(0);
-	}
+    // Determine base name for chunk data file and maybe client name.
+    char *baseName = 0;
+    char *token = strtok(dllname, "/");
+    while(token != NULL) {
+	baseName = token;
+	token = strtok(NULL, "/");
     }
-    if (openJack(pluginName.c_str())) {
-	plugin->warn("Failed to connect to JACK audio server (jackd not running?)");
+    // baseName should now correspond to the plugin's dll name. Remove file extension.
+    baseName = strtok(baseName, ".");
+
+    // Set chunk data file name and try to load it from the current directory.
+    asprintf(&chunkFile, "%s.chunk", baseName);
+    load_chunk();
+
+    // Determine client name to use for JACK audio and ALSA midi connections. JACK
+    // poses a length restriction on such names whereas ALSA does not.
+    int maxNameLength = jack_client_name_size();
+    char clientName[maxNameLength];
+
+    const char *pluginName = plugin->getName().c_str();
+    if(strcmp(pluginName, "/") == 0) {
+	// pluginName seems to be a path name. Use baseName in this case.
+	pluginName = baseName;
+    }
+    if(snprintf(clientName, maxNameLength, "VST %s", pluginName) < 0) {
 	bail(0);
     }
+    printf("client name: %s\n", clientName);
 
-    // restore signal handling
-    pthread_sigmask(SIG_UNBLOCK, &_signals, 0);
-
-    ready = true;
-
-    if (hasMIDI) {
-
-	npfd = snd_seq_poll_descriptors_count(alsaSeqHandle, POLLIN);
-	pfd = (struct pollfd *)alloca(npfd * sizeof(struct pollfd));
-	snd_seq_poll_descriptors(alsaSeqHandle, pfd, npfd, POLLIN);
-
-	while (1) {
-	    if (poll(pfd, npfd, 1000) > 0) {
-		alsaSeqCallback(alsaSeqHandle);
-	    }
-	    if (exiting) bail(0);
-	}
-    } else {
-
-	while (1) {
-	    sleep (1);
-	    if (exiting) bail(0);
-	}
-    }
+    init(clientName);
+    run();
 }
