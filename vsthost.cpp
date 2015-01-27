@@ -54,7 +54,7 @@ struct JackData {
 
 static JackData jackData;
 
-char *chunkFile = NULL;
+char *stateFile = NULL;
 
 void closeJack();
 
@@ -90,8 +90,8 @@ bail(int sig)
 	delete plugin;
     }
 
-    if(chunkFile) {
-	free(chunkFile);
+    if(stateFile) {
+	free(stateFile);
     }
 
     // ignore term signals, then send one to the process group
@@ -440,10 +440,10 @@ closeJack()
 void
 load_chunk()
 {
-    // Try to load VST chunk data from chunkFile.
-    int fd = open(chunkFile, O_RDONLY);
+    // Try to load VST chunk data from stateFile.
+    int fd = open(stateFile, O_RDONLY);
     if(fd != -1) {
-	plugin->setVSTChunk(rdwr_readRaw(fd, chunkFile, 0));
+	plugin->setVSTChunk(rdwr_readRaw(fd, stateFile, 0));
 	close(fd);
     }
 }
@@ -451,11 +451,46 @@ load_chunk()
 void
 save_chunk(int sig)
 {
-    // Try to save VST chunk data to chunkFile.
+    // Try to save VST chunk data to stateFile.
     // http://pubs.opengroup.org/onlinepubs/9699919799/functions/open.html
-    int fd = open(chunkFile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    int fd = open(stateFile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if(fd != -1) {
-	rdwr_writeRaw(fd, plugin->getVSTChunk(), chunkFile, 0);
+	rdwr_writeRaw(fd, plugin->getVSTChunk(), stateFile, 0);
+	close(fd);
+    }
+}
+
+void
+load_params()
+{
+    // Try to load VST parameters from stateFile.
+    int fd = open(stateFile, O_RDONLY);
+    if(fd != -1) {
+	int n = plugin->getParameterCount();
+	float params[n];
+
+	if(read(fd, params, n * sizeof(float)) != -1) {
+	    for(int i = 0; i < n; i++) {
+		plugin->setParameter(i, params[i]);
+	    }
+	}
+
+	close(fd);
+    }
+}
+
+void
+save_params(int sig)
+{
+    // Try to save VST parameters to stateFile.
+    int fd = open(stateFile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if(fd != -1) {
+	int n = plugin->getParameterCount();
+	float params[n];
+
+	plugin->getParameters(0, n-1, params);
+	write(fd, params, n * sizeof(float));
+
 	close(fd);
     }
 }
@@ -561,16 +596,6 @@ main(int argc, char **argv)
     sigaction(SIGTERM, &sa, 0);
     sigaction(SIGPIPE, &sa, 0);
 
-    // Signals SIGUSR1, and SIGUSR2 trigger saving of VST chunk data.
-    struct sigaction saSave;
-    saSave.sa_handler = save_chunk;
-    sigemptyset(&saSave.sa_mask);
-    saSave.sa_flags = 0;
-    // SIGUSR1 is useful for LADISH support. It might be problematic though as it
-    // is also used by wine in order to suspend misbehaving processes.
-    sigaction(SIGUSR1, &saSave, 0);
-    sigaction(SIGUSR2, &saSave, 0);
-
     // This should be set before any calls to bail().
     jackData.client = 0;
 
@@ -581,7 +606,7 @@ main(int argc, char **argv)
 	bail(0);
     }
 
-    // Determine base name for chunk data file and maybe client name.
+    // Determine base name for plugin state file and maybe client name.
     char *baseName = 0;
     char *token = strtok(dllname, "/");
     while(token != NULL) {
@@ -591,9 +616,28 @@ main(int argc, char **argv)
     // baseName should now correspond to the plugin's dll name. Remove file extension.
     baseName = strtok(baseName, ".");
 
-    // Set chunk data file name and try to load it from the current directory.
-    asprintf(&chunkFile, "%s.chunk", baseName);
-    load_chunk();
+    // Set plugin state file name and try to load it from the current directory.
+    asprintf(&stateFile, "%s.state", baseName);
+
+    // Register signals SIGUSR1, and SIGUSR2 to trigger plugin state saving.
+    struct sigaction saSave;
+
+    if(plugin->getVSTChunk().size() > 0) {
+	// Plugin supports loading and saving VST chunks.
+	load_chunk();
+	saSave.sa_handler = save_chunk;
+    } else {
+	// Plugin only supports loading and saving parameters.
+	load_params();
+	saSave.sa_handler = save_params;
+    }
+
+    sigemptyset(&saSave.sa_mask);
+    saSave.sa_flags = 0;
+    // SIGUSR1 is useful for LADISH support. It might be problematic though as it
+    // is also used by wine in order to suspend misbehaving processes.
+    sigaction(SIGUSR1, &saSave, 0);
+    sigaction(SIGUSR2, &saSave, 0);
 
     // Determine client name to use for JACK audio and ALSA midi connections. JACK
     // poses a length restriction on such names whereas ALSA does not.
