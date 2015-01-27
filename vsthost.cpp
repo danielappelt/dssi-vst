@@ -601,7 +601,7 @@ main(int argc, char **argv)
     char clientName[maxNameLength];
 
     const char *pluginName = plugin->getName().c_str();
-    if(strcmp(pluginName, "/") == 0) {
+    if(strncmp(pluginName, "/", 1) == 0) {
 	// pluginName seems to be a path name. Use baseName in this case.
 	pluginName = baseName;
     }
